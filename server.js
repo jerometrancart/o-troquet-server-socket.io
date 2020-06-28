@@ -7,13 +7,31 @@ const bodyParser = require('body-parser');
 const Server = require('http').Server;
 const socket = require('socket.io');
 
+// const server = require('http').createServer();
+
+
+
+// const io = require('socket.io')(server, {
+//   path: '/test',
+//   serveClient: false,
+//   // below are engine.IO options
+//   pingInterval: 10000,
+//   pingTimeout: 5000,
+//   cookie: false
+// });
+
+// server.listen(3001);
+
 
 /*
  * Vars
  */
 const app = express();
-const server = Server(app);
+const server = Server(app, {
+  path: '/test'
+});
 const io = socket(server);
+io.path('/test');
 const port = 3001;
 const path = require('path');
 /**
@@ -35,56 +53,67 @@ app.use((request, response, next) => {
 });
 
 // Page d'accueil du serveur : GET /
-app.use(express.static("public"));
-// app.get('/', (request, response) => {
+// app.use(express.static("public"));
+app.get('/', (request, response) => {
 //   response.redirect('http://localhost:8080')
   // response.sendFile(path.join(__dirname, '../../APOTHÉOSE/obar\ \-\ front/public/src/assets/'))
   // /home/etudiant/Bureau/html/APOTHÉOSE/obar - front/src/index.js
   // obar - front/src/index.js
-  // response.send(`
-  //   <div style="margin: 5em auto; width: 400px; line-height: 1.5">
-  //     <h1 style="text-align: center">Hello!</h1>
-  //     <p>Si tu vois ce message, c'est que ton serveur est bien lancé !</p>
-  //     <div>Désormais, tu peux utiliser le chat et le jeu</div>
-  //   </div>
-  // `);
-// });
+  response.send(`
+    <div style="margin: 5em auto; width: 400px; line-height: 1.5">
+      <h1 style="text-align: center">Hello!</h1>
+      <p>Si tu vois ce message, c'est que ton serveur est bien lancé !</p>
+      <div>Désormais, tu peux utiliser le chat et le jeu</div>
+    </div>
+  `);
+});
 
 // listen for GET request on url /{roomId} and
-app.get('/:roomId', (request, response) => {
-  // if empty
-  if (rooms[request.params.room] == null) {
-    // redirects to home (should result in /gameselect page)
-    return response.redirect('/')
-  }
-  // if not empty : renders (constructs) a view
-  response.render('room', {roomName: request.params.room})
-});
+// app.get('/:roomId', (request, response) => {
+//   // if empty
+//   if (rooms[request.params.room] == null) {
+//     // redirects to home (should result in /gameselect page)
+//     return response.redirect('/')
+//   }
+//   // if not empty : renders (constructs) a view
+//   response.render('room', {roomName: request.params.room})
+// });
 
 /*
  * Socket.io
  */
-let id = 0;
+let id = 1;
+
+const tinyURL = (length) => {
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.match(/./g);
+  let text = '';
+  for (let i = 0; i < length; i++) {
+    text += charset[Math.floor(Math.random() * charset.length)];
+  }
+  return text;
+};
 
 io.on('connection', (ws) => {
 
   // say who connects
   console.log('>> socket.io - connected');
   console.log(ws.handshake.headers.referer);
+
   // identifies new user, and let him join the room
-  ws.on('new-user', (room, name) => {
-    console.log('new-user')
-    ws.join(room);
-    rooms[room].users[ws.id] = name;
-    ws.to(room).broadcast.emit('user-commected', name)
+  ws.on('new_user', (name) => {
+    console.log('new user', name);
+    // rooms[room].users[ws.id] = name;
+    // ws.to(room).broadcast.emit('user-connected', name)
   });
 
   // say who speaks & display in the correct room
   ws.on('send_message', (room, message) => {
-    console.log('message sent', room, message);
+    console.log('message received by server', room, message);
     message.id = ++id;
     // emits to the correct room
-    ws.to(room).broadcast.emit('send_message', {message: message, name: rooms[room].users[ws.id]});
+    // ws.to(room).emit('send_message', {content: message.content, author: rooms[room].users[ws.id], id:message.id});
+    ws.to(room).emit('send_message', message);
+    console.log('message emitted by server', message, room);
   });
 
   // say who disconnects
@@ -113,11 +142,12 @@ io.on('connection', (ws) => {
     rooms.push(newRoom);
     ws.emit('available_rooms', rooms);
     console.log('available_rooms', rooms);
-
-    // before joining the new room we need to get out of the previous one
     
     console.log('userObject : ', userObject)
-    
+    ws.join(roomId);
+    console.log('websocket joining new room : ', roomId);
+    ws.emit('room_created', roomId);
+    // console.log(roomId);
     // previousRoom = rooms.map((room) => {
     //   room.users.includes((name) => name === userObject)
     // })
@@ -137,10 +167,9 @@ io.on('connection', (ws) => {
     console.log('previousRoom : ', previousRoom);
     console.log('previousRooms : ', previousRooms);
     // and cleaning all empty rooms on the server
-    ws.join(roomId);
-    console.log('websocket after joining new room : ',ws);
-    ws.emit('room_created', roomId);
-    // console.log(roomId);
+
+
+
     ws.on('say to someone', function(id, msg){
       ws.broadcast.to(id).emit('my message', msg);
     });
@@ -150,7 +179,9 @@ io.on('connection', (ws) => {
     ws.emit('available_rooms', rooms);
     console.log('available_rooms : ', rooms);
     yourRoom = rooms.find( (room) => (room.users.length <= 3))
+    ws.join(yourRoom.id);
     ws.emit('your_room', yourRoom.id)
+    ws.emit('room_created', yourRoom.id)
     console.log('your_room : ', yourRoom.id);
   })
 });
