@@ -159,9 +159,9 @@ io.on('connection', (ws) => {
     console.log('previousRoom : ', previousRoom);
     console.log('previousRooms : ', previousRooms);
 
-    ws.on('say to someone', function(id, msg){
-      ws.broadcast.to(id).emit('my message', msg);
-    });
+    // ws.on('say to someone', function(id, msg){
+    //   ws.broadcast.to(id).emit('my message', msg);
+    // });
 
     // TODO manage the empty rooms
 
@@ -177,7 +177,7 @@ io.on('connection', (ws) => {
       message.id = ++id;
       // emits to the correct room
       // ws.to(room).emit('send_message', {content: message.content, author: rooms[room].users[ws.id], id:message.id});
-      ws.to(room).emit('send_message', message);
+      ws.in(room).emit('send_message', message);
       ws.emit('send_message', message);
       console.log('message emitted by server', message, room);
     });
@@ -186,7 +186,7 @@ io.on('connection', (ws) => {
     ws.on('disconnect', () => {
       console.log('user disconnected');
       getUserRooms(ws).forEach(room => {
-        ws.to(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
+        ws.in(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
       });
       // and delete the user
       // delete rooms[room].users[ws.id]
@@ -206,6 +206,7 @@ io.on('connection', (ws) => {
     ws.emit('your_room', yourRoom.id)
     ws.emit('room_created', yourRoom.id)
     console.log('your_room : ', yourRoom.id);
+
   })
 });
 /*
