@@ -82,7 +82,7 @@ app.get('/', (request, response) => {
 /*
  * Socket.io
  */
-let id = 1;
+let id = 2;
 
 const tinyURL = (length) => {
   const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.match(/./g);
@@ -99,80 +99,103 @@ io.on('connection', (ws) => {
   console.log('>> socket.io - connected');
   console.log(ws.handshake.headers.referer);
 
-  // identifies new user, and let him join the room
-  ws.on('new_user', (name) => {
-    console.log('new user', name);
-    // rooms[room].users[ws.id] = name;
-    // ws.to(room).broadcast.emit('user-connected', name)
-  });
-
-  // say who speaks & display in the correct room
-  ws.on('send_message', (room, message) => {
-    console.log('message received by server', room, message);
+  // listen and react to general messages
+  ws.on('send_message_client_to_server', (roomId, message) => {
+    console.log('message received by server', 'general', roomId, message);
     message.id = ++id;
-    // emits to the correct room
-    // ws.to(room).emit('send_message', {content: message.content, author: rooms[room].users[ws.id], id:message.id});
-    ws.to(room).emit('send_message', message);
-    console.log('message emitted by server', message, room);
+    // emits to all
+    ws.emit('send_message_server_to_client', message);
+    console.log('message emitted by server', message);
   });
 
-  // say who disconnects
-  ws.on('disconnect', () => {
-    console.log('user disconnected');
-    getUserRooms(ws).forEach(room => {
-      ws.to(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
-    });
+  // listen and reacts when a user joins
+  ws.on('new_user_client_to_server', (message) => {
+    console.log('new user ', message.author);
+    // rooms[room].users[ws.id] = name;
+    ws.emit('new_user_server_to_client', { content: ' joined', author: message.author })
+  });
+
+   // for later : reacts when a user leaves
+   ws.on('disconnect', (name) => {
+    console.log('user disconnected ', name);
+    // getUserRooms(ws).forEach(room => {
+    //   ws.to(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
+    // });
     // and delete the user
     // delete rooms[room].users[ws.id]
     //ws.disconnect(true);
+    ws.emit('send_message', { content: ' left', author: name })
   });
-
  
- 
- 
-  // ------ create room ------ //
+  // ------ room management ------ //
 
   ws.on('create_room', (roomId, user) => {
+    // aknowledgement
     console.log('creating a room');
+    // room is an object with an id and a list of user objects
     newRoom = { id: roomId, users: []};
+    // user objects have only one property : name
     userObject = {name: user}
+    // users enter newly created room
     newRoom.users.push(userObject);
-    ws.emit('room_created', newRoom);
-    console.log('room created', newRoom, newRoom.users)
-    rooms.push(newRoom);
-    ws.emit('available_rooms', rooms);
-    console.log('available_rooms', rooms);
-    
-    console.log('userObject : ', userObject)
     ws.join(roomId);
+    // aknowledgement of the room created
+    ws.emit('room_created', newRoom);
+    console.log('room created', newRoom, newRoom.users);
+    // the new room enters the list of rooms
+    rooms.push(newRoom);
+    // send the list to front
+    ws.emit('available_rooms', rooms);
+    console.log('available_rooms', rooms);    
+    console.log('userObject : ', userObject)
     console.log('websocket joining new room : ', roomId);
-    ws.emit('room_created', roomId);
-    // console.log(roomId);
-    // previousRoom = rooms.map((room) => {
-    //   room.users.includes((name) => name === userObject)
-    // })
-    // previousRoom = rooms.users.find((user) => user.name === user)
-    // previousRoom = rooms.filter(room => console.log(room.users))
+    // ws.emit('room_created', roomId);
+    
     previousRoom = rooms.find((room) => {
       return room.users.includes(userObject)
     })
-    // previousRoom = rooms.filter(room => {
-    //   return room.users.includes(userObject)
-    // })
-    // newPreviousRoom = previousRoom.slice
-
-
 
     previousRooms.push(previousRoom)
     console.log('previousRoom : ', previousRoom);
     console.log('previousRooms : ', previousRooms);
-    // and cleaning all empty rooms on the server
-
-
 
     ws.on('say to someone', function(id, msg){
       ws.broadcast.to(id).emit('my message', msg);
     });
+
+    // TODO manage the empty rooms
+
+    ws.on('new_user', (name) => {
+      console.log('new user', name);
+      // rooms[room].users[ws.id] = name;
+      // ws.to(room).broadcast.emit('user-connected', name)
+    });
+  
+    // say who speaks & display in the correct room
+    ws.on('send_message', (room, message) => {
+      console.log('message received by server', room, message);
+      message.id = ++id;
+      // emits to the correct room
+      // ws.to(room).emit('send_message', {content: message.content, author: rooms[room].users[ws.id], id:message.id});
+      ws.to(room).emit('send_message', message);
+      ws.emit('send_message', message);
+      console.log('message emitted by server', message, room);
+    });
+  
+    // say who disconnects
+    ws.on('disconnect', () => {
+      console.log('user disconnected');
+      getUserRooms(ws).forEach(room => {
+        ws.to(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
+      });
+      // and delete the user
+      // delete rooms[room].users[ws.id]
+      //ws.disconnect(true);
+    });
+
+
+
+
   });
 
   ws.on('get_room', () => {
