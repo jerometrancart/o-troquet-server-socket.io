@@ -39,7 +39,42 @@ const path = require('path');
  */
 
 const rooms = [];
-const previousRooms = [];
+// const previousRooms = [];
+
+/*
+rooms = {
+  { id: tinyURL,
+
+    users : [
+      { name: 'jérôme' },
+      { name: 'damien' },
+      { name: 'florian' },
+      { name: 'thomas' },
+    ]
+  },
+  { id: tinyURL2,
+
+    users : [
+      { name: 'user1' },
+      { name: 'user2' },
+      { name: 'user3' },
+      { name: 'user4' },
+    ]
+  },
+  { id: tinyURL3,
+
+    users : [
+      { name: 'user5' },
+      { name: 'user6' },
+      { name: 'user7' },
+      { name: 'user8' },
+    ]
+  },
+}
+*/
+
+
+
 /*
  * Express
  */
@@ -68,16 +103,6 @@ app.get('/', (request, response) => {
   `);
 });
 
-// listen for GET request on url /{roomId} and
-// app.get('/:roomId', (request, response) => {
-//   // if empty
-//   if (rooms[request.params.room] == null) {
-//     // redirects to home (should result in /gameselect page)
-//     return response.redirect('/')
-//   }
-//   // if not empty : renders (constructs) a view
-//   response.render('room', {roomName: request.params.room})
-// });
 
 /*
  * Socket.io
@@ -99,24 +124,44 @@ io.on('connection', (ws) => {
   console.log('>> socket.io - connected');
   console.log(ws.handshake.headers.referer);
 
+  ws.on('get_room', () => {
+    // ws.emit('available_rooms', rooms);
+    // console.log('available_rooms : ', rooms);
+    if (rooms.length !== 0 ) {
+    yourRoom = rooms.find( (room) => (room.users.length <= 3))
+    ws.join(yourRoom.id);
+    ws.emit('your_room', yourRoom.id)
+    // ws.emit('room_created', yourRoom.id)
+    console.log('your_room : ', yourRoom.id);
+    }
+    else {
+      ws.emit('no_room');
+    }
+  })
+
+
+
+
   // listen and react to general messages
   ws.on('send_message_client_to_server', (roomId, message) => {
-    console.log('message received by server', 'general', roomId, message);
+    console.log('message received by server', roomId, message);
+    // sets up an id for the message
     message.id = ++id;
-    // emits to all
-    ws.emit('send_message_server_to_client', message);
-    console.log('message emitted by server', message);
+    // emits to all ???
+    ws.in(roomId).emit('send_message_server_to_client', message);
+    // ws.emit('send_message_server_to_client', message);
+    console.log('message emitted by server',roomId, message);
   });
 
   // listen and reacts when a user joins
-  ws.on('new_user_client_to_server', (message) => {
+  ws.on('new_user_client_to_server', (roomId, message) => {
     console.log('new user ', message.author);
     // rooms[room].users[ws.id] = name;
-    ws.emit('new_user_server_to_client', { content: ' joined', author: message.author })
+    ws.to(roomId).emit('new_user_server_to_client', { content: ' joined', author: message.author })
   });
 
    // for later : reacts when a user leaves
-   ws.on('disconnect', (name) => {
+   ws.on('disconnect', (name, roomId) => {
     console.log('user disconnected ', name);
     // getUserRooms(ws).forEach(room => {
     //   ws.to(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
@@ -124,14 +169,16 @@ io.on('connection', (ws) => {
     // and delete the user
     // delete rooms[room].users[ws.id]
     //ws.disconnect(true);
-    ws.emit('send_message', { content: ' left', author: name })
+    ws.to(roomId).emit('user_disconnected', { content: ' left', author: name })
   });
  
   // ------ room management ------ //
 
-  ws.on('create_room', (roomId, user) => {
+  ws.on('create_room', (user) => {
     // aknowledgement
     console.log('creating a room');
+    // room Id calculated in back
+    roomId = tinyURL(12);
     // room is an object with an id and a list of user objects
     newRoom = { id: roomId, users: []};
     // user objects have only one property : name
@@ -139,6 +186,7 @@ io.on('connection', (ws) => {
     // users enter newly created room
     newRoom.users.push(userObject);
     ws.join(roomId);
+    console.log('on create room, socket joined ', roomId);
     // aknowledgement of the room created
     ws.emit('room_created', newRoom);
     console.log('room created', newRoom, newRoom.users);
@@ -146,18 +194,18 @@ io.on('connection', (ws) => {
     rooms.push(newRoom);
     // send the list to front
     ws.emit('available_rooms', rooms);
-    console.log('available_rooms', rooms);    
-    console.log('userObject : ', userObject)
-    console.log('websocket joining new room : ', roomId);
+    // console.log('available_rooms', rooms);    
+    // console.log('userObject : ', userObject)
+    // console.log('websocket joining new room : ', roomId);
     // ws.emit('room_created', roomId);
     
-    previousRoom = rooms.find((room) => {
-      return room.users.includes(userObject)
-    })
+    // previousRoom = rooms.find((room) => {
+    //   return room.users.includes(userObject)
+    // })
 
-    previousRooms.push(previousRoom)
-    console.log('previousRoom : ', previousRoom);
-    console.log('previousRooms : ', previousRooms);
+    // previousRooms.push(previousRoom)
+    // console.log('previousRoom : ', previousRoom);
+    // console.log('previousRooms : ', previousRooms);
 
     // ws.on('say to someone', function(id, msg){
     //   ws.broadcast.to(id).emit('my message', msg);
@@ -190,56 +238,33 @@ io.on('connection', (ws) => {
       });
       // and delete the user
       // delete rooms[room].users[ws.id]
-      //ws.disconnect(true);
+      // ws.disconnect(true);
     });
+  });
 
+  ws.on('check_room_client_to_server', (roomId) => {
+    if (rooms.length !== 0 ) {
+      yourRoom = rooms.find( (room) => (room.id === roomId));
+      console.log(yourRoom);
+      if (yourRoom.id !== undefined){
+        ws.join(yourRoom.id);
+        console.log('on c/p link, socket joined ', yourRoom.id);
+        // console.log(ws.room);
 
-
+        ws.emit('check_room_server_to_client_ok', yourRoom.id)
+        // ws.emit('room_created', yourRoom.id)
+        // console.log('your_room : ', yourRoom.id);
+      }
+    }
+    else {
+      ws.emit('check_room_server_to_client_not_ok');
+    }
 
   });
 
-  ws.on('get_room', () => {
-    ws.emit('available_rooms', rooms);
-    console.log('available_rooms : ', rooms);
-    yourRoom = rooms.find( (room) => (room.users.length <= 3))
-    ws.join(yourRoom.id);
-    ws.emit('your_room', yourRoom.id)
-    ws.emit('room_created', yourRoom.id)
-    console.log('your_room : ', yourRoom.id);
-
-  })
+ 
 });
-/*
-rooms = {
-  { id: tinyURL,
 
-    users : [
-      { name: 'jérôme' },
-      { name: 'damien' },
-      { name: 'florian' },
-      { name: 'thomas' },
-    ]
-  },
-  { id: tinyURL2,
-
-    users : [
-      { name: 'user1' },
-      { name: 'user2' },
-      { name: 'user3' },
-      { name: 'user4' },
-    ]
-  },
-  { id: tinyURL3,
-
-    users : [
-      { name: 'user5' },
-      { name: 'user6' },
-      { name: 'user7' },
-      { name: 'user8' },
-    ]
-  },
-}
-*/
 // io.on('disconnect', () => {
 //   console.log('user disconnected');
 //   io.disconnect(true);
