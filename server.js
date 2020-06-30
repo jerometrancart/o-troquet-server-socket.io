@@ -186,6 +186,7 @@ io.on('connection', (ws) => {
     // users enter newly created room
     newRoom.users.push(userObject);
     ws.join(roomId);
+    console.log('on create room, socket joined ', roomId);
     // aknowledgement of the room created
     ws.emit('room_created', newRoom);
     console.log('room created', newRoom, newRoom.users);
@@ -193,9 +194,9 @@ io.on('connection', (ws) => {
     rooms.push(newRoom);
     // send the list to front
     ws.emit('available_rooms', rooms);
-    console.log('available_rooms', rooms);    
-    console.log('userObject : ', userObject)
-    console.log('websocket joining new room : ', roomId);
+    // console.log('available_rooms', rooms);    
+    // console.log('userObject : ', userObject)
+    // console.log('websocket joining new room : ', roomId);
     // ws.emit('room_created', roomId);
     
     // previousRoom = rooms.find((room) => {
@@ -237,11 +238,27 @@ io.on('connection', (ws) => {
       });
       // and delete the user
       // delete rooms[room].users[ws.id]
-      //ws.disconnect(true);
+      // ws.disconnect(true);
     });
+  });
 
+  ws.on('check_room_client_to_server', (roomId) => {
+    if (rooms.length !== 0 ) {
+      yourRoom = rooms.find( (room) => (room.id === roomId));
+      console.log(yourRoom);
+      if (yourRoom.id !== undefined){
+        ws.join(yourRoom.id);
+        console.log('on c/p link, socket joined ', yourRoom.id);
+        // console.log(ws.room);
 
-
+        ws.emit('check_room_server_to_client_ok', yourRoom.id)
+        // ws.emit('room_created', yourRoom.id)
+        // console.log('your_room : ', yourRoom.id);
+      }
+    }
+    else {
+      ws.emit('check_room_server_to_client_not_ok');
+    }
 
   });
 
