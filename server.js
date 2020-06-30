@@ -42,7 +42,7 @@ const rooms = [];
 // const previousRooms = [];
 
 /*
-rooms = {
+rooms = [
   { id: tinyURL,
 
     users : [
@@ -70,7 +70,7 @@ rooms = {
       { name: 'user8' },
     ]
   },
-}
+]
 */
 
 
@@ -141,23 +141,23 @@ io.on('connection', (ws) => {
 
 
 
-
   // listen and react to general messages
   ws.on('send_message_client_to_server', (roomId, message) => {
     console.log('message received by server', roomId, message);
     // sets up an id for the message
     message.id = ++id;
     // emits to all ???
-    ws.in(roomId).emit('send_message_server_to_client', message);
+    io.sockets.in(roomId).emit('send_message_server_to_client', message);
     // ws.emit('send_message_server_to_client', message);
     console.log('message emitted by server',roomId, message);
   });
 
   // listen and reacts when a user joins
   ws.on('new_user_client_to_server', (roomId, message) => {
-    console.log('new user ', message.author);
+    console.log('new user without room ', message.author);
     // rooms[room].users[ws.id] = name;
-    ws.to(roomId).emit('new_user_server_to_client', { content: ' joined', author: message.author })
+    ws.join(roomId);
+    io.sockets.in(roomId).emit('new_user_server_to_client', { content: ' joined', author: message.author })
   });
 
    // for later : reacts when a user leaves
@@ -214,7 +214,7 @@ io.on('connection', (ws) => {
     // TODO manage the empty rooms
 
     ws.on('new_user', (name) => {
-      console.log('new user', name);
+      console.log('new user room created ', name);
       // rooms[room].users[ws.id] = name;
       // ws.to(room).broadcast.emit('user-connected', name)
     });
@@ -246,13 +246,13 @@ io.on('connection', (ws) => {
     if (rooms.length !== 0 ) {
       yourRoom = rooms.find( (room) => (room.id === roomId));
       console.log(yourRoom);
-      if (yourRoom.id !== undefined){
+      if (yourRoom !== undefined){
         ws.join(yourRoom.id);
         console.log('on c/p link, socket joined ', yourRoom.id);
         // console.log(ws.room);
 
-        ws.emit('check_room_server_to_client_ok', yourRoom.id)
-        // ws.emit('room_created', yourRoom.id)
+        ws.emit('check_room_server_to_client_ok', yourRoom.id);
+        // ws.emit('room_created', yourRoom.id);
         // console.log('your_room : ', yourRoom.id);
       }
     }
