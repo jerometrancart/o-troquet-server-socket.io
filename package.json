@@ -4,7 +4,14 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon server.js"
+    "start": "nodemon server.js",
+    "build": "cross-env NODE_ENV=production webpack --config config/webpack.prod.js",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint --fix src/**/*.js",
+    "clean": "rm -rf dist",
+    "clean:all": "rm -rf dist node_modules yarn.lock package-lock.json",
+    "test": "NODE_PATH=./ mocha --require tests/.setup.js tests/**/*.test.js",
+    "test:watch": "NODE_PATH=./ mocha --watch --require tests/.setup.js tests/**/*.test.js"
   },
   "keywords": [],
   "author": "",

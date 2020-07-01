@@ -54,8 +54,12 @@ rooms = [
         score : 0, },
       { name: 'thomas',
         score : 7, },
-    ]
+    ],
+
+    pot: 21,
+
   },
+
   { id: tinyURL2,
 
     users : [
@@ -127,15 +131,17 @@ io.on('connection', (ws) => {
   // say who connects
   console.log('>> socket.io - connected');
   console.log(ws.handshake.headers.referer);
+  console.log('ws.id : ', ws.id);
 
-  ws.on('get_room', () => {
+  ws.on('get_room', (name) => {
     // ws.emit('available_rooms', rooms);
     // console.log('available_rooms : ', rooms);
     if (rooms.length !== 0 ) {
     yourRoom = rooms.find( (room) => (room.users.length <= 3))
+    ws.room = yourRoom.id
+    ws.name = name;
     ws.join(yourRoom.id);
     ws.emit('your_room', yourRoom.id)
-    // ws.emit('room_created', yourRoom.id)
     console.log('your_room : ', yourRoom.id);
     }
     else {
@@ -158,23 +164,27 @@ io.on('connection', (ws) => {
 
   // listen and reacts when a user joins
   ws.on('new_user_client_to_server', (roomId, message) => {
-    console.log('new user without room ', message.author);
-    // rooms[room].users[ws.id] = name;
+    console.log('new user ', message.author);
+    ws.name = message.author; 
     ws.join(roomId);
+    // rooms[roomId].users[ws.id] = name;
     io.sockets.in(roomId).emit('new_user_server_to_client', { content: ' joined', author: message.author })
   });
 
    // reacts when a user leaves
-   ws.on('disconnect', (name, roomId) => {
-    console.log('user disconnected ', name);
-    // getUserRooms(ws).forEach(room => {
-    //   ws.to(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
+   ws.on('disconnect', (reason) => {
+    console.log('user disconnected ws.name ', ws.name);
+    console.log('ws.room : ', ws.room);
+    let rooms = getUserRooms(ws);
+    console.log(rooms);
+    // rooms.forEach(room => {
+    //   ws.to(room).broadcast.emit('user_disconnected', rooms[room].users[ws.id])
     // });
     // and delete the user
     // delete rooms[room].users[ws.id]
-    //ws.disconnect(true);
-    ws.leave(roomId);
-    io.sockets.in(roomId).emit('user_disconnected', { content: ' left', author: name })
+    ws.disconnect(true);
+    // ws.leave(roomId);
+    io.sockets.in(roomId).emit('user_disconnected', { content: ' left', author: ws.name })
   });
  
   // ------ room management ------ //
@@ -185,12 +195,18 @@ io.on('connection', (ws) => {
     // room Id calculated in back
     roomId = tinyURL(12);
     // room is an object with an id and a list of user objects
-    newRoom = { id: roomId, users: []};
+    newRoom = { id: roomId, users: [], pot: 21, started: false};
     // user objects have only one property : name
-    userObject = {name: user}
+    userObject = {name: user, score: 0}
     // users enter newly created room
     newRoom.users.push(userObject);
+
+
+
     ws.join(roomId);
+    ws.room = roomId;
+    ws.name = user;
+    console.log('room id', roomId);
     console.log('on create room, socket joined ', roomId);
     // aknowledgement of the room created
     ws.emit('room_created', newRoom);
@@ -199,22 +215,7 @@ io.on('connection', (ws) => {
     rooms.push(newRoom);
     // send the list to front
     ws.emit('available_rooms', rooms);
-    // console.log('available_rooms', rooms);    
-    // console.log('userObject : ', userObject)
-    // console.log('websocket joining new room : ', roomId);
-    // ws.emit('room_created', roomId);
-    
-    // previousRoom = rooms.find((room) => {
-    //   return room.users.includes(userObject)
-    // })
 
-    // previousRooms.push(previousRoom)
-    // console.log('previousRoom : ', previousRoom);
-    // console.log('previousRooms : ', previousRooms);
-
-    // ws.on('say to someone', function(id, msg){
-    //   ws.broadcast.to(id).emit('my message', msg);
-    // });
 
     // TODO manage the empty rooms
 
@@ -266,54 +267,40 @@ io.on('connection', (ws) => {
     }
 
   });
+    // ===============      Game      =============== //
 
-  ws.on('start_game', (roomId) => {
+  ws.on('start_game', (action) => {
 
     // ===============      Game start      =============== //
     console.log('GAME STARTED');
-    let socketsInRoom = io.sockets.in(roomId);
-    console.log(roomId);
-    // io.sockets.in(roomId).map((socket) => {
-    // socketsInRoom.map((socket) => {
-    //   console.log(socket.room)
-    // })
-    // console.log('sockets in room : ', io.sockets.in(roomId))
-    // io.sockets.in(roomId).emit('GAME_STARTED');
-    socketsInRoom.emit('GAME_STARTED');
+    let socketsInRoom = io.sockets.in(action.roomId);
+    console.log(action.roomId);
+    console.log(socketsInRoom);
+    socketsInRoom.emit('GAME_STARTED', action.player);
+    action.roomId.started = true;
+
+    // ===============      update room      =============== //
+    //ws.on()
+
+
+
+
+
+
 
 
   })
 
  
-});
-
-// io.on('disconnect', () => {
-//   console.log('user disconnected');
-//   io.disconnect(true);
-// });
+})
 
 
-/**
- * Sessions
- */
-
- // ------ getting the random session path ------ //
-
-// io.on('set_path', (path) => {
-
-//   io.emit('send_message', {author: 'Bartender', content: 'Pleased to see you again ^^ Have this link to connect : www.otroquet.com/gameboard/fourtwentyone/'+path });
-//   const room = io.of('/gameboard/fourtwentyone/'+path);
-//   room.on('connection', function(socket){
-//     console.log('someone connected on the tiny url');
-//   });
-//   room.emit('send_message', {author: 'Bartender', content: 'Hi everyone !'} );
-
-
-// });
 
 function getUserRooms(ws) {
   return Object.entries(rooms).reduce((names, [name, room]) => {
-    if (room.users[ws.id] != null ) names.push(name)
+    if (room.users[ws.id] != null ) {
+      names.push(name);
+    }
     return names
   }, [])
 }
@@ -359,9 +346,6 @@ const leaveRooms = (socket) => {
     delete rooms[room.id];
   }
 };
-
-
-
 
 
 
