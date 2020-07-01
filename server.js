@@ -46,10 +46,14 @@ rooms = [
   { id: tinyURL,
 
     users : [
-      { name: 'jérôme' },
-      { name: 'damien' },
-      { name: 'florian' },
-      { name: 'thomas' },
+      { name: 'jérôme' 
+        score : 11, },
+      { name: 'damien',
+        score : 13, },
+      { name: 'florian',
+        score : 0, },
+      { name: 'thomas',
+        score : 7, },
     ]
   },
   { id: tinyURL2,
@@ -160,7 +164,7 @@ io.on('connection', (ws) => {
     io.sockets.in(roomId).emit('new_user_server_to_client', { content: ' joined', author: message.author })
   });
 
-   // for later : reacts when a user leaves
+   // reacts when a user leaves
    ws.on('disconnect', (name, roomId) => {
     console.log('user disconnected ', name);
     // getUserRooms(ws).forEach(room => {
@@ -169,7 +173,8 @@ io.on('connection', (ws) => {
     // and delete the user
     // delete rooms[room].users[ws.id]
     //ws.disconnect(true);
-    ws.to(roomId).emit('user_disconnected', { content: ' left', author: name })
+    ws.leave(roomId);
+    io.sockets.in(roomId).emit('user_disconnected', { content: ' left', author: name })
   });
  
   // ------ room management ------ //
@@ -250,7 +255,7 @@ io.on('connection', (ws) => {
         ws.join(yourRoom.id);
         console.log('on c/p link, socket joined ', yourRoom.id);
         // console.log(ws.room);
-
+        // GxPv4K7hcmRqdfghnsdfghs
         ws.emit('check_room_server_to_client_ok', yourRoom.id);
         // ws.emit('room_created', yourRoom.id);
         // console.log('your_room : ', yourRoom.id);
@@ -261,6 +266,23 @@ io.on('connection', (ws) => {
     }
 
   });
+
+  ws.on('start_game', (roomId) => {
+
+    // ===============      Game start      =============== //
+    console.log('GAME STARTED');
+    let socketsInRoom = io.sockets.in(roomId);
+    console.log(roomId);
+    // io.sockets.in(roomId).map((socket) => {
+    // socketsInRoom.map((socket) => {
+    //   console.log(socket.room)
+    // })
+    // console.log('sockets in room : ', io.sockets.in(roomId))
+    // io.sockets.in(roomId).emit('GAME_STARTED');
+    socketsInRoom.emit('GAME_STARTED');
+
+
+  })
 
  
 });
