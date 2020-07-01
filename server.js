@@ -274,13 +274,14 @@ io.on('connection', (ws) => {
     // ===============      Game start      =============== //
     console.log('GAME STARTED');
     let socketsInRoom = io.sockets.in(action.roomId);
-    console.log(action.roomId);
-    console.log(socketsInRoom);
+    console.log('action.roomId : ', action.roomId);
+    // console.log('sockets in room : ', socketsInRoom);
     socketsInRoom.emit('GAME_STARTED', action.player);
+    socketsInRoom.emit('PARTY_UPDATED', {...action.roomId});
     action.roomId.started = true;
 
     // ===============      update room      =============== //
-    //ws.on()
+    // ws.on('PARTY_UPDATED')
 
 
 
