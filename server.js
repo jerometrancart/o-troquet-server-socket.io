@@ -133,80 +133,76 @@ io.on('connection', (ws) => {
   console.log(ws.handshake.headers.referer);
   console.log('ws.id : ', ws.id);
 
+  // rooms = [
+  //   { id: tinyURL,
+  
+  //     users : [
+  //       { name: 'jérôme' 
+  //         score : 11, },
+  //       { name: 'damien',
+  //         score : 13, },
+  //       { name: 'florian',
+  //         score : 0, },
+  //       { name: 'thomas',
+  //         score : 7, },
+  //     ],
+  
+  //     pot: 21,
+  
+  //   },
+  
+
+
+
   ws.on('get_room', (name) => {
     // ws.emit('available_rooms', rooms);
     // console.log('available_rooms : ', rooms);
     if (rooms.length !== 0 ) {
-    yourRoom = rooms.find( (room) => (room.users.length <= 3))
-    ws.room = yourRoom.id
-    ws.name = name;
-    ws.join(yourRoom.id);
-    ws.emit('your_room', yourRoom.id)
-    console.log('your_room : ', yourRoom.id);
-    }
+      yourRoom = rooms.find( (room) => (room.users.length <= 3))
+      if (yourRoom !== undefined) {  
+        ws.room = yourRoom.id
+        ws.name = name;
+        ws.join(yourRoom.id);
+        ws.emit('your_room', yourRoom.id)
+        console.log('your_room : ', yourRoom.id);
+        } else {
+          ws.emit('no_room');
+        }
+      }
     else {
       ws.emit('no_room');
-    }
+    }    
   })
 
-
-
-  // listen and react to general messages
-  ws.on('send_message_client_to_server', (roomId, message) => {
-    console.log('message received by server', roomId, message);
-    // sets up an id for the message
-    message.id = ++id;
-    // emits to all ???
-    io.sockets.in(roomId).emit('send_message_server_to_client', message);
-    // ws.emit('send_message_server_to_client', message);
-    console.log('message emitted by server',roomId, message);
-  });
-
-  // listen and reacts when a user joins
-  ws.on('new_user_client_to_server', (roomId, message) => {
-    console.log('new user ', message.author);
-    ws.name = message.author; 
-    ws.join(roomId);
-    // rooms[roomId].users[ws.id] = name;
-    io.sockets.in(roomId).emit('new_user_server_to_client', { content: ' joined', author: message.author })
-  });
-
-   // reacts when a user leaves
-   ws.on('disconnect', (reason) => {
-    console.log('user disconnected ws.name ', ws.name);
-    console.log('ws.room : ', ws.room);
-    let rooms = getUserRooms(ws);
-    console.log(rooms);
-    // rooms.forEach(room => {
-    //   ws.to(room).broadcast.emit('user_disconnected', rooms[room].users[ws.id])
-    // });
-    // and delete the user
-    // delete rooms[room].users[ws.id]
-    ws.disconnect(true);
-    // ws.leave(roomId);
-    io.sockets.in(roomId).emit('user_disconnected', { content: ' left', author: ws.name })
-  });
- 
   // ------ room management ------ //
-
   ws.on('create_room', (user) => {
     // aknowledgement
     console.log('creating a room');
     // room Id calculated in back
     roomId = tinyURL(12);
     // room is an object with an id and a list of user objects
-    newRoom = { id: roomId, users: [], pot: 21, started: false};
+      newRoom = {
+        id: roomId,
+        users: [],
+        pot: 21,
+        started: false
+      };
+
+      console.log('ws',ws);
+     // console.log('sockeeeeet : ',ws);
+    if (newRoom.users >= 3 ){
+      
+    }
     // user objects have only one property : name
     userObject = {name: user, score: 0}
     // users enter newly created room
     newRoom.users.push(userObject);
-
-
-
+    
     ws.join(roomId);
     ws.room = roomId;
     ws.name = user;
-    console.log('room id', roomId);
+
+   // console.log('room id', roomId);
     console.log('on create room, socket joined ', roomId);
     // aknowledgement of the room created
     ws.emit('room_created', newRoom);
@@ -235,18 +231,64 @@ io.on('connection', (ws) => {
       ws.emit('send_message', message);
       console.log('message emitted by server', message, room);
     });
-  
-    // say who disconnects
-    ws.on('disconnect', () => {
-      console.log('user disconnected');
-      getUserRooms(ws).forEach(room => {
-        ws.in(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
+    
+    
+    
+    
+    
+    
+      // say who disconnects
+      ws.on('disconnect', () => {
+        console.log('user disconnected');
+        getUserRooms(ws).forEach(room => {
+          ws.in(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
+        });
+        // and delete the user
+        // delete rooms[room].users[ws.id]
+        // ws.disconnect(true);
       });
-      // and delete the user
-      // delete rooms[room].users[ws.id]
-      // ws.disconnect(true);
+
+
     });
+  
+
+  // listen and react to general messages
+  ws.on('send_message_client_to_server', (roomId, message) => {
+    console.log('message received by server', roomId, message);
+    // sets up an id for the message
+    message.id = ++id;
+    // emits to all ???
+    io.sockets.in(roomId).emit('send_message_server_to_client', message);
+    // ws.emit('send_message_server_to_client', message);
+    console.log('message emitted by server',roomId, message);
   });
+
+  // listen and reacts when a user joins
+  ws.on('new_user_client_to_server', (roomId, message) => {
+    console.log('new user ', message.author);
+    ws.name = message.author; 
+    ws.join(roomId);
+    // rooms[roomId].users[ws.id] = name;
+    io.sockets.in(roomId).emit('new_user_server_to_client', { content: ' joined', author: message.author })
+  });
+
+  // reacts when a user leaves
+   ws.on('disconnect', (reason) => {
+    console.log('user disconnected ws.name ', ws.name);
+    console.log('ws.room : ', ws.room);
+    let rooms = getUserRooms(ws);
+    console.log(rooms);
+    // rooms.forEach(room => {
+    //   ws.to(room).broadcast.emit('user_disconnected', rooms[room].users[ws.id])
+    // });
+    // and delete the user
+    // delete rooms[room].users[ws.id]
+    ws.disconnect(true);
+    // ws.leave(roomId);
+    io.sockets.in(ws.room).emit('user_disconnected', { content: ' left', author: ws.name })
+  });
+ 
+
 
   ws.on('check_room_client_to_server', (roomId) => {
     if (rooms.length !== 0 ) {
@@ -260,6 +302,9 @@ io.on('connection', (ws) => {
         ws.emit('check_room_server_to_client_ok', yourRoom.id);
         // ws.emit('room_created', yourRoom.id);
         // console.log('your_room : ', yourRoom.id);
+      }
+      else {
+        ws.emit('check_room_server_to_client_not_ok');
       }
     }
     else {
@@ -277,22 +322,13 @@ io.on('connection', (ws) => {
     console.log('action.roomId : ', action.roomId);
     // console.log('sockets in room : ', socketsInRoom);
     socketsInRoom.emit('GAME_STARTED', action.player);
-    socketsInRoom.emit('PARTY_UPDATED', {...action.roomId});
     action.roomId.started = true;
+    socketsInRoom.emit('UPDATE_PARTY', {...action.roomId});
 
     // ===============      update room      =============== //
     // ws.on('PARTY_UPDATED')
-
-
-
-
-
-
-
-
+    // ws.on('die_blocked', (die) => {})
   })
-
- 
 })
 
 
