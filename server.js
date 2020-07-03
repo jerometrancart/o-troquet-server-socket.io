@@ -128,42 +128,46 @@ const tinyURL = (length) => {
 
 io.on('connection', (ws) => {
 
-  // say who connects
   console.log('>> socket.io - connected');
   console.log(ws.handshake.headers.referer);
   console.log('ws.id : ', ws.id);
 
   // rooms = [
+  //
   //   { id: tinyURL,
-  
+  //
   //     users : [
-  //      ws.id: { name: 'jérôme' 
-  //         score : 11, },
-  //      ws.id: { name: 'damien',
-  //         score : 13, },
-  //      ws.id: { name: 'florian',
-  //         score : 0, },
-  //      ws.id: { name: 'thomas',
-  //         score : 7, },
+  //       { id: ws.id, name: 'jérôme', score : 11 },
+  //         
+  //       { id: ws.id, name: 'damien', score : 13, },
+  //         
+  //       { id: ws.id, name: 'florian', score : 0, },
+  //         
+  //       { id: ws.id, name: 'thomas', score : 7, },       
   //     ],
-  
+  //
   //     pot: 21,
   //      
   //     first-die: { data: 1, blocked: false}
   //     second-die: { data: 1, blocked: false}
   //     third-die: { data: 1, blocked: false}
-  //            
-  
+  //
   //   },
+  //
   
-  // ------ room management ------ //
+
+//==========================================================================//
+//                                                                          //
+// ======================        CREATE ROOM        ======================= //
+//                                                                          //
+//==========================================================================//
   ws.on('create_room', (user) => {
     // aknowledgement
-    console.log('creating a room');
+    console.log('166 creating a room');
     // room Id calculated in back
     roomId = tinyURL(12);
-    // room is an object with an id and a list of user objects
-      rooms[roomId] = {
+    // room is an object with an id and a list of user objects and scores
+      newRoom = {
         id: roomId,
         users: [],
         pot: 21,
@@ -173,48 +177,54 @@ io.on('connection', (ws) => {
         thirdDie: { data: 1, blocked: false},
       };
 
-    // console.log('ws',ws);
-    // console.log('sockeeeeet : ',ws);
-    // user objects have only one property : name
-    userObject = {name: user, score: 0}
-    // users enter newly created room
-    rooms[roomId].users[ws.id] = userObject;
-    console.log('182 i push a new user !!!!!', rooms[roomId].users[ws.id]);
+    userObject = { id: ws.id, name: user, score: 0};
+    newRoom.users.push(userObject);
+    // socket joins the room
     ws.join(roomId);
+    console.log('184 socket joins ', newRoom);
+    // console.log('185 socket : ', ws)
+    console.log('186 socket room : ', ws.rooms)
+    console.log('187 new room created ', newRoom);
+    
+    console.log('189 i push a new user !!!!!', newRoom.users);
+    // new room joins rooms
+    rooms.push(newRoom);
+    console.log('192 rooms on the server : ', rooms);
+    console.log('193 rooms on the server : ', io.rooms);
+
+    // for later : new properties for socket
     ws.room = roomId;
     ws.name = user;
-    updateClientRoom(rooms[roomId]);
-    console.log(rooms[roomId]);
     
-    // console.log('room id', roomId);
-    console.log('on create room, socket joined ', roomId);
-    // aknowledgement of the room created
-    ws.emit('room_created', rooms[roomId]);
-    console.log('room created : ', rooms[roomId]);
-    console.log('users in it : ', rooms[roomId].users);
+    updateClientRoom(newRoom, {content: `Hello, it\'s good to see you again ! Here, have this link to share with your friends : www.otroquet.fr/gameboard/fourtwentyone/${roomId}`, author: 'Bartender'});
+    // console.log('190 party updated : ', rooms[roomId]);
+    // aknowledgement of the room created, so the client stores it into its state
+    ws.emit('room_created', newRoom);
     // the new room enters the list of rooms
-    // rooms.push(rooms[roomId]);
-    // send the list to front
-    ws.emit('available_rooms', rooms);
+    // console.log('available_rooms', rooms);
   });
 
-
+//==========================================================================//
+//                                                                          //
+// =======================         GET ROOM         ======================= //
+//                                                                          //
+//==========================================================================//
   ws.on('get_room', (name) => {
-    // ws.emit('available_rooms', rooms);
+    
     // console.log('available_rooms : ', rooms);
     if (rooms.length !== 0 ) {
+      
       yourRoom = rooms.find( (room) => (room.users.length <= 3))
+      console.log('217 room.find : ', yourRoom);
       if (yourRoom !== undefined) {  
+        ws.join(yourRoom.id);
         ws.room = yourRoom.id
         ws.name = name;
-        ws.join(yourRoom.id);
-        yourRoom.users.push({name, score: 0});
-        console.log('211 i push a new user !!!!!');
-        updateClientRoom(yourRoom)
-        // io.sockets.in(yourRoom.id).emit('UPDATE_PARTY', yourRoom);
+        yourRoom.users.push({id: ws.id, name, score: 0});
+        console.log('224 i push a new user !!!!!');
+        updateClientRoom(yourRoom,  {content: `Here comes ${ws.name}, say hi !`, author: 'Bartender'})
         console.log('213 rooms : ', rooms);
         console.log('party updated');
-
 
         ws.emit('your_room', yourRoom.id)
         console.log('your_room : ', yourRoom.id);
@@ -227,111 +237,22 @@ io.on('connection', (ws) => {
     } 
   })
 
-  
+//==========================================================================//
+//                                                                          //
+// =======================    COPY PASTING LINKS    ======================= //
+//                                                                          //
+//==========================================================================//
 
-    // TODO manage the empty rooms
-
-    ws.on('new_user', (name) => {
-      console.log('new user room created ', name);
-      // rooms[room].users[ws.id] = name;
-      // ws.to(room).broadcast.emit('user-connected', name)
-    });
-  
-    // say who speaks & display in the correct room
-    ws.on('send_message', (room, message) => {
-      console.log('message received by server', room, message);
-      message.id = ++id;
-      // emits to the correct room
-      // ws.to(room).emit('send_message', {content: message.content, author: rooms[room].users[ws.id], id:message.id});
-      ws.in(room).emit('send_message', message);
-      ws.emit('send_message', message);
-      console.log('message emitted by server', message, room);
-    });
-    
-    
-    
-    
-    
-    
-      // say who disconnects
-      ws.on('disconnect', () => {
-        console.log('user disconnected');
-        getUserRooms(ws).forEach(room => {
-          ws.in(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
-        });
-        // and delete the user
-        // delete rooms[room].users[ws.id]
-        // ws.disconnect(true);
-      });
-
-
-    
-  
-
-  // listen and react to general messages
-  ws.on('send_message_client_to_server', (roomId, message) => {
-    console.log('message received by server', roomId, message);
-    // sets up an id for the message
-    message.id = ++id;
-    // emits to all ???
-    io.sockets.in(roomId).emit('send_message_server_to_client', message);
-    // ws.emit('send_message_server_to_client', message);
-    console.log('message emitted by server',roomId, message);
-  });
-
-  // listen and reacts when a user joins
-  ws.on('new_user_client_to_server', (roomId, message) => {
-    console.log('new user ', message.author);
-    ws.name = message.author; 
-    ws.join(roomId);
-    rooms[roomId].users[ws.id] = {name : ws.name, score: 0 };
-    io.sockets.in(roomId).emit('new_user_server_to_client', rooms[roomId], { content: ' joined', author: message.author });
-    
-    // room = rooms.find( (room) => (room.id === roomId));
-    room = rooms[roomId];
-    // room.users.push({name : ws.name, score: 0});
-    console.log('293 i push a new user here !!!!!', room);
-    io.sockets.in(roomId).emit('UPDATE_PARTY', room);
-    console.log('295 rooms : ', rooms);
-    console.log('party updated');
-  
-  });
-
-  // reacts when a user leaves
-   ws.on('disconnect', (reason) => {
-    console.log('302 user disconnected ws.name ', ws.name);
-    console.log('303 ws.room : ', ws.room);
-    let userRooms = getUserRooms(ws);
-    console.log('305 rooms in server : ', rooms);
-    if (userRooms != null){
-      userRooms.forEach(userRoom => {
-        ws.to(userRoom).emit('user_disconnected', rooms[userRoom].users[ws.id])
-        // and delete the user
-        delete rooms[ws.room].users[ws.id];
-      });
-    }
-  
-
-    // player={name: ws.name, score: 0}
-    // yourRoom.users.push(newPlayer);
-    // io.sockets.in(yourRoom.id).emit('UPDATE_PARTY', yourRoom);
-    io.sockets.in(ws.room).emit('UPDATE_PARTY', ws.room);
-    ws.disconnect(true);
-    // ws.leave(roomId);
-    io.sockets.in(ws.room).emit('user_disconnected', { content: ' left', author: ws.name })
-  });
- 
-
-
-  ws.on('check_room_client_to_server', (roomId) => {
+  ws.on('check_room_client_to_server', (roomId, name) => {
     if (rooms.length !== 0 ) {
       yourRoom = rooms.find( (room) => (room.id === roomId));
       console.log('yourRoom : ', yourRoom);
       if (yourRoom !== undefined){
         ws.join(yourRoom.id);
-        newPlayer={name: ws.name, score: 0}
+        newPlayer={id: ws.id, name: name, score: 0}
         yourRoom.users.push(newPlayer);
-        io.sockets.in(yourRoom.id).emit('UPDATE_PARTY', yourRoom);
+        // io.sockets.in(yourRoom.id).emit('UPDATE_PARTY', yourRoom);
+        updateClientRoom(yourRoom, {content: `Welcome, make yourself comfortable !` , author: 'Bartender'});
         console.log('on c/p link, socket joined ', yourRoom.id);
         // console.log(ws.room);
         // GxPv4K7hcmRqdfghnsdfghs
@@ -349,11 +270,126 @@ io.on('connection', (ws) => {
     }
 
   });
-    // ===============      Game      =============== //
+
+
+
+
+//==========================================================================//
+//                                                                          //
+// =======================         MESSAGES         ======================= //
+//                                                                          //
+//==========================================================================//
+
+  // say who speaks & display in the correct room
+  ws.on('send_message', (room, message) => {
+    console.log('message received by server', room, message);
+    message.id = ++id;
+    // emits to the correct room
+    // ws.to(room).emit('send_message', {content: message.content, author: rooms[room].users[ws.id], id:message.id});
+    ws.in(room).emit('send_message', message);
+    ws.emit('send_message', message);
+    console.log('message emitted by server', message, room);
+  });
+   
+
+  // say who disconnects
+  ws.on('disconnect', () => {
+    console.log('user disconnected');
+    getUserRooms(ws).forEach(room => {
+      ws.in(room).broadcast.emit('user-disconnected', rooms[room].users[ws.id])
+      updateClientRoom(room, {content: `Farewell, ${name} !` , author: 'Bartender'})
+    });
+    // and delete the user
+    // delete rooms[room].users[ws.id]
+    // ws.disconnect(true);
+  });
+
+
+  // listen and react to general messages
+  ws.on('send_message_client_to_server', (roomId, message) => {
+    console.log('message received by server', roomId, message);
+    // sets up an id for the message
+    message.id = ++id;
+    // emits to all ???
+    io.sockets.in(roomId).emit('send_message_server_to_client', message);
+    // ws.emit('send_message_server_to_client', message);
+    console.log('message emitted by server',roomId, message);
+  });
+
+
+
+
+  
+//==========================================================================//
+//                                                                          //
+// =======================      GENERAL EVENTS      ======================= //
+//                                                                          //
+//==========================================================================//
+
+
+
+  // listen and reacts when a user joins a room
+  ws.on('new_user_client_to_server', (roomId, message) => {
+    console.log('new user ', message.author);
+    ws.name = message.author; 
+    // ws.join(roomId);
+    // rooms[roomId].users[ws.id] = {name : ws.name, score: 0 };
+    userObject = { id: ws.id, name: ws.name, score: 0};
+    // rooms[roomId].users.push(userObject);
+    // io.sockets.in(roomId).emit('new_user_server_to_client', roomId, { content: ' joined', author: message.author });
+    
+    room = rooms.find( (room) => (room.id === roomId));
+    // room = rooms[roomId];
+    room.users.push({id: ws.id, name : ws.name, score: 0});
+    console.log('301 i push a new user here !!!!!', room);
+    updateClientRoom(room, {content: `${ws.name} joined : say hi !`, author: 'Bartender'})
+    // io.sockets.in(roomId).emit('UPDATE_PARTY', room);
+    console.log('304 rooms : ', rooms);
+    console.log('party updated');
+  
+  });
+
+
+  // reacts when a user leaves
+   ws.on('disconnect', (reason) => {
+    console.log('302 user disconnected ws.name ', ws.name);
+    console.log('303 ws.room : ', ws.room);
+    socketRoom = rooms.find((room) => (room.id === ws.room));
+    console.log('socketRoom object : ', socketRoom);
+    let userRooms = getUserRooms(ws);
+    console.log('305 rooms in server : ', rooms);
+    if (userRooms != null){
+      userRooms.forEach(userRoom => {
+        ws.to(userRoom).emit('user_disconnected', rooms[userRoom].users[ws.id])
+        // and delete the user
+        // delete rooms[userRoom].users[ws.id];
+      });
+    }
+  
+
+    // player={name: ws.name, score: 0}
+    // yourRoom.users.push(newPlayer);
+    // io.sockets.in(yourRoom.id).emit('UPDATE_PARTY', yourRoom);
+    io.sockets.in(ws.room).emit('UPDATE_PARTY', ws.room);
+    // ws.leave(roomId);
+
+    // delete rooms[ws.room].users.find(user => name == ws.name)
+    updateClientRoom(ws.room, )
+    io.sockets.in(ws.room).emit('user_disconnected', { content: ' left', author: ws.name })
+    ws.disconnect(true);
+  });
+ 
+
+//==========================================================================//
+//                                                                          //
+// =======================      GAME COMMANDS       ======================= //
+//                                                                          //
+//==========================================================================//
+  
+// =======================        Game start        ======================= //
 
   ws.on('start_game', (action) => {
 
-    // ===============      Game start      =============== //
     console.log('GAME STARTED', action);
     console.log('346 rooms on the server ', rooms);
     let socketsInRoom = io.sockets.in(action.roomId);
@@ -367,8 +403,25 @@ io.on('connection', (ws) => {
     // ===============      update room      =============== //
     // ws.on('PARTY_UPDATED')
     // ws.on('die_blocked', (die) => {})
+
+
+
+
+
+
+
+
   })
 })
+
+
+
+
+//==========================================================================//
+//                                                                          //
+// =======================    GENERAL FUNCTIONS     ======================= //
+//                                                                          //
+//==========================================================================//
 
 
 
@@ -381,8 +434,8 @@ function getUserRooms(ws) {
   }, [])
 }
 
-function updateClientRoom(room) {
-  io.sockets.in(rooms[room.id]).emit('UPDATE_PARTY', room);
+function updateClientRoom(room, message) {
+  io.sockets.in(room.id).emit('UPDATE_PARTY', room, message);
 }
 
 
@@ -426,8 +479,6 @@ const leaveRooms = (socket) => {
     delete rooms[room.id];
   }
 };
-
-
 
 
 /*
