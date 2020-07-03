@@ -342,7 +342,7 @@ io.on('connection', (ws) => {
     // room = rooms[roomId];
     room.users.push({id: ws.id, name : ws.name, score: 0});
     console.log('301 i push a new user here !!!!!', room);
-    updateClientRoom(room, {content: `${ws.name} joined : say hi !`, author: 'Bartender'})
+    // updateClientRoom(room, {content: `${ws.name} joined : say hi !`, author: 'Bartender'})
     // io.sockets.in(roomId).emit('UPDATE_PARTY', room);
     console.log('304 rooms : ', rooms);
     console.log('party updated');
@@ -356,6 +356,9 @@ io.on('connection', (ws) => {
     console.log('303 ws.room : ', ws.room);
     socketRoom = rooms.find((room) => (room.id === ws.room));
     console.log('socketRoom object : ', socketRoom);
+    userInSocketRoom = socketRoom.users.find((socket) => (socket.id === ws.id));
+    console.log('361 i delete ', userInSocketRoom)
+    delete userInSocketRoom;
     let userRooms = getUserRooms(ws);
     console.log('305 rooms in server : ', rooms);
     if (userRooms != null){
