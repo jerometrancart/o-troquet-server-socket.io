@@ -469,7 +469,10 @@ io.on('connection', (ws) => {
   ws.on('toggle_block', (action, player) => {
     console.log('on toggleBlock action : ', action);
     //socketsInRoom.emit('GAME_STARTED', action.player);
-    updateClientRoom(action, {content: `Die ${action.firstDie.blocked} by ${player} !` , author: 'Bartender'})
+    // TODO : setting a dynamic message to say which die was blocked or released
+    // message = {content: `Die ${action.firstDie.blocked} by ${player} !` , author: 'Bartender'}
+
+    updateClientRoom(action, {content: `Die clicked by ${player} !` , author: 'Bartender'});
 
 
 
