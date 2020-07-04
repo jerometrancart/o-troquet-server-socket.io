@@ -446,7 +446,7 @@ io.on('connection', (ws) => {
 //                                                                          //
 //==========================================================================//
   
-// =======================        Game start / paused       ======================= //
+// =======================        Game start / pause       ======================= //
 
   ws.on('start_game', (action) => {
     console.log('452 action ', action);
@@ -471,43 +471,76 @@ io.on('connection', (ws) => {
     switch (targetedDie){
       case 'firstDie':
         if (action[targetedDie].blocked===true) {
-          updateClientRoom(action, {content: `First die blocked by ${player} !` , author: 'Bartender'});
+          updateClientRoom(action, {content: `First die blocked by ${player}` , author: 'Bartender'});
         } else {
-          updateClientRoom(action, {content: `First die released by ${player} !` , author: 'Bartender'});
+          updateClientRoom(action, {content: `First die released by ${player}` , author: 'Bartender'});
         }
       break;
       case 'secondDie':
         if (action[targetedDie].blocked===true) {
-          updateClientRoom(action, {content: `Second die blocked by ${player} !` , author: 'Bartender'});
+          updateClientRoom(action, {content: `Second die blocked by ${player}` , author: 'Bartender'});
         } else {
-          updateClientRoom(action, {content: `Second die released by ${player} !` , author: 'Bartender'});
+          updateClientRoom(action, {content: `Second die released by ${player}` , author: 'Bartender'});
         }
         break;
       case 'thirdDie':
         if (action[targetedDie].blocked===true) {
-          updateClientRoom(action, {content: `Third die blocked by ${player} !` , author: 'Bartender'});
+          updateClientRoom(action, {content: `Third die blocked by ${player}` , author: 'Bartender'});
         } else {
-          updateClientRoom(action, {content: `Third die released by ${player} !` , author: 'Bartender'});
+          updateClientRoom(action, {content: `Third die released by ${player}` , author: 'Bartender'});
         }
         break;
       default:
         if (action[targetedDie].blocked===true) {
-          updateClientRoom(action, {content: `${targetedDie} blocked by ${player} !` , author: 'Bartender'});
+          updateClientRoom(action, {content: `${targetedDie} blocked by ${player}` , author: 'Bartender'});
         } else {
-          updateClientRoom(action, {content: `${targetedDie} released by ${player} !` , author: 'Bartender'});
+          updateClientRoom(action, {content: `${targetedDie} released by ${player}` , author: 'Bartender'});
         }
     }
   })
 
 // =========================        Roll dice        ========================= //
-  ws.on('roll_dice', (action, player) => {
-    console.log('on roll_dice action : ', action);
+  ws.on('roll_dice', (room, player) => {
+    console.log('on roll_dice action : ', room);
 
+    const getRandomNumber = ((min, max) => {
+      const mini = Math.ceil(min);
+      const maxi = Math.floor(max);
+      return Math.floor(Math.random() * (maxi - mini + 1)) + mini;
+    });    
+    
+    const dice = [room.firstDie, room.secondDie, room.thirdDie]
 
+    // console.log('dice : ', dice)
 
+    const random = () => {
+      dice.forEach((die) => {
+        // toggleClasses(die);
+        if (die.blocked === false){
+          die.data = getRandomNumber(1, 6)
+          return dice;
+        };
+      });
+    }
+    random();
+    console.log('results : ', dice)
 
+    const sum = Object.keys(dice).reduce( (previous, key) => {
+      return previous + dice[key].data;
+    }, 0);
 
+    room.users.find((user) => (user.name === player)).score = sum; // objet ok
 
+    room = {
+      ...room,
+      firstDie: dice[0],
+      secondDie: dice[1],
+      thirdDie: dice[2],
+    };
+    
+    console.log('new room :', room);
+
+    updateClientRoom(room, {content: `${player} rolls the dice and scores ${sum} !` , author: 'Bartender'});
 
   })
 
