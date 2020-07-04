@@ -446,25 +446,38 @@ io.on('connection', (ws) => {
 //                                                                          //
 //==========================================================================//
   
-// =======================        Game start        ======================= //
+// =======================        Game start / paused       ======================= //
 
   ws.on('start_game', (action) => {
-
+    console.log('452 action ', action);
     console.log('346 rooms on the server ', rooms);
     let socketsInRoom = io.sockets.in(action.roomId);
     console.log('action.roomId : ', action.roomId);
     // console.log('sockets in room : ', socketsInRoom);
     socketsInRoom.emit('GAME_STARTED', action.player);
-    action.room.started = true;
-    console.log('GAME STARTED', action.room);
-    // socketsInRoom.emit('UPDATE_PARTY', action.room);
-    updateClientRoom(action.room, {content: `Game started by ${action.player} !` , author: 'Bartender'})
+    if (!action.room.started) {
+      action.room.started = true;
+      updateClientRoom(action.room, {content: `Game started by ${action.player} !` , author: 'Bartender'})
+    }
+    else {
+      action.room.started = false;
+      updateClientRoom(action.room, {content: `Game paused by ${action.player} !` , author: 'Bartender'})
+    }
+  })
+// =======================        Toggle block die        ======================= //
 
-    // socketsInRoom.emit('UPDATE_PARTY', {...action.roomId});
+  ws.on('toggle_block', (action, player) => {
+    console.log('on toggleBlock action : ', action);
+    //socketsInRoom.emit('GAME_STARTED', action.player);
+    updateClientRoom(action, {content: `Die ${action.firstDie.blocked} by ${player} !` , author: 'Bartender'})
 
-    // ===============      update room      =============== //
-    // ws.on('PARTY_UPDATED')
-    // ws.on('die_blocked', (die) => {})
+
+
+
+
+
+
+  
 
 
 
@@ -474,6 +487,11 @@ io.on('connection', (ws) => {
 
 
   })
+
+ 
+
+
+
 })
 
 
