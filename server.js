@@ -466,16 +466,50 @@ io.on('connection', (ws) => {
   })
 // =======================        Toggle block die        ======================= //
 
-  ws.on('toggle_block', (action, player) => {
+  ws.on('toggle_block', (action, player, targetedDie) => {
     console.log('on toggleBlock action : ', action);
-    //socketsInRoom.emit('GAME_STARTED', action.player);
-    // TODO : setting a dynamic message to say which die was blocked or released
-    // message = {content: `Die ${action.firstDie.blocked} by ${player} !` , author: 'Bartender'}
+    switch (targetedDie){
+      case 'firstDie':
+        if (action[targetedDie].blocked===true) {
+          updateClientRoom(action, {content: `First die blocked by ${player} !` , author: 'Bartender'});
+        } else {
+          updateClientRoom(action, {content: `First die released by ${player} !` , author: 'Bartender'});
+        }
+      break;
+      case 'secondDie':
+        if (action[targetedDie].blocked===true) {
+          updateClientRoom(action, {content: `Second die blocked by ${player} !` , author: 'Bartender'});
+        } else {
+          updateClientRoom(action, {content: `Second die released by ${player} !` , author: 'Bartender'});
+        }
+        break;
+      case 'thirdDie':
+        if (action[targetedDie].blocked===true) {
+          updateClientRoom(action, {content: `Third die blocked by ${player} !` , author: 'Bartender'});
+        } else {
+          updateClientRoom(action, {content: `Third die released by ${player} !` , author: 'Bartender'});
+        }
+        break;
+      default:
+        if (action[targetedDie].blocked===true) {
+          updateClientRoom(action, {content: `${targetedDie} blocked by ${player} !` , author: 'Bartender'});
+        } else {
+          updateClientRoom(action, {content: `${targetedDie} released by ${player} !` , author: 'Bartender'});
+        }
+    }
+  })
 
-    updateClientRoom(action, {content: `Die clicked by ${player} !` , author: 'Bartender'});
+// =========================        Roll dice        ========================= //
+  ws.on('roll_dice', (action, player) => {
+    console.log('on roll_dice action : ', action);
 
 
 
+
+
+
+
+  })
 
 
 
@@ -489,8 +523,7 @@ io.on('connection', (ws) => {
 
 
 
-  })
-
+  
  
 
 
