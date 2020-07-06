@@ -561,6 +561,7 @@ io.on('connection', (ws) => {
     random();
     console.log('results : ', dice)
 
+    // i make the sum of the results to display it in the scoreboard
     const sum = Object.keys(dice).reduce( (previous, key) => {
       return previous + dice[key].data;
     }, 0);
