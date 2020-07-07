@@ -172,9 +172,9 @@ io.on('connection', (ws) => {
         users: [],
         pot: 21,
         started: false,
-        firstDie: { data: 1, blocked: false},
-        secondDie: { data: 1, blocked: false},
-        thirdDie: { data: 1, blocked: false},
+        firstDie: { data: 1, blocked: false, roll: true},
+        secondDie: { data: 1, blocked: false, roll: true},
+        thirdDie: { data: 1, blocked: false, roll: true},
       };
 
     // userObject = { id: ws.id, name: user, score: 0};
@@ -553,6 +553,7 @@ io.on('connection', (ws) => {
       dice.forEach((die) => {
         // toggleClasses(die);
         if (die.blocked === false){
+          die.roll = !die.roll,
           die.data = getRandomNumber(1, 6)
           return dice;
         };
@@ -567,7 +568,7 @@ io.on('connection', (ws) => {
     }, 0);
 
     if (room.users.find((user) => (user.name === player))) {
-      room.users.find((user) => (user.name === player)).score = sum; // objet ok
+      room.users.find((user) => (user.name === player)).score = sum; // object ok
     }
     room = {
       ...room,
